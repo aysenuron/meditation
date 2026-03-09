@@ -1,69 +1,81 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import FloatingOrbs from '../components/FloatingOrbs';
 
-interface BreathTechnique {
-  id: string;
-  name: string;
-  description: string;
-  emoji: string;
-  phases: BreathPhase[];
-}
-
-interface BreathPhase {
+interface Phase {
   label: string;
-  duration: number; // seconds
-  color: string;
+  duration: number;
   scale: number;
 }
 
-const techniques: BreathTechnique[] = [
+interface Technique {
+  id: string;
+  name: string;
+  description: string;
+  phases: Phase[];
+}
+
+const TECHNIQUES: Technique[] = [
   {
     id: 'box',
-    name: 'Box Breathing',
-    description: 'Equal counts of 4. Used by Navy SEALs to calm the mind.',
-    emoji: '📦',
+    name: 'Box',
+    description: '4 · 4 · 4 · 4',
     phases: [
-      { label: 'Inhale', duration: 4, color: '#3B82F6', scale: 1.6 },
-      { label: 'Hold', duration: 4, color: '#8B5CF6', scale: 1.6 },
-      { label: 'Exhale', duration: 4, color: '#06B6D4', scale: 1 },
-      { label: 'Hold', duration: 4, color: '#8B5CF6', scale: 1 },
+      { label: 'INHALE', duration: 4, scale: 1.5 },
+      { label: 'HOLD', duration: 4, scale: 1.5 },
+      { label: 'EXHALE', duration: 4, scale: 1 },
+      { label: 'HOLD', duration: 4, scale: 1 },
     ],
   },
   {
     id: '478',
-    name: '4-7-8 Breathing',
-    description: 'A natural tranquilizer for the nervous system.',
-    emoji: '💤',
+    name: '4·7·8',
+    description: '4 · 7 · 8',
     phases: [
-      { label: 'Inhale', duration: 4, color: '#3B82F6', scale: 1.6 },
-      { label: 'Hold', duration: 7, color: '#8B5CF6', scale: 1.6 },
-      { label: 'Exhale', duration: 8, color: '#06B6D4', scale: 1 },
+      { label: 'INHALE', duration: 4, scale: 1.5 },
+      { label: 'HOLD', duration: 7, scale: 1.5 },
+      { label: 'EXHALE', duration: 8, scale: 1 },
     ],
   },
   {
     id: 'simple',
-    name: 'Simple Breathe',
-    description: 'Slow, gentle breathing for everyday calm.',
-    emoji: '🌿',
+    name: 'Simple',
+    description: '4 · 6',
     phases: [
-      { label: 'Inhale', duration: 4, color: '#10B981', scale: 1.6 },
-      { label: 'Exhale', duration: 6, color: '#06B6D4', scale: 1 },
+      { label: 'INHALE', duration: 4, scale: 1.5 },
+      { label: 'EXHALE', duration: 6, scale: 1 },
     ],
   },
 ];
 
+function SplitText({ text, className }: { text: string; className?: string }) {
+  return (
+    <div className={`flex overflow-hidden ${className ?? ''}`}>
+      {text.split('').map((char, i) => (
+        <motion.span
+          key={i}
+          initial={{ y: '110%' }}
+          animate={{ y: 0 }}
+          transition={{ duration: 0.6, delay: i * 0.04, ease: [0.22, 1, 0.36, 1] }}
+          style={{ display: char === ' ' ? 'inline-block' : undefined, minWidth: char === ' ' ? '0.4em' : undefined }}
+        >
+          {char}
+        </motion.span>
+      ))}
+    </div>
+  );
+}
+
 export default function Breathe() {
-  const [selectedTechnique, setSelectedTechnique] = useState<BreathTechnique | null>(null);
+  const [selected, setSelected] = useState<Technique | null>(null);
   const [isRunning, setIsRunning] = useState(false);
-  const [phaseIndex, setPhaseIndex] = useState(0);
-  const [phaseTimeLeft, setPhaseTimeLeft] = useState(0);
-  const [cycleCount, setCycleCount] = useState(0);
+  const [phaseIdx, setPhaseIdx] = useState(0);
+  const [timeLeft, setTimeLeft] = useState(0);
+  const [cycles, setCycles] = useState(0);
 
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const phaseIndexRef = useRef(0);
-  const phaseTimeLeftRef = useRef(0);
-  const cycleCountRef = useRef(0);
+  const phaseIdxRef = useRef(0);
+  const timeLeftRef = useRef(0);
+  const cyclesRef = useRef(0);
 
   const clearTimer = useCallback(() => {
     if (intervalRef.current) {
@@ -73,221 +85,237 @@ export default function Breathe() {
   }, []);
 
   const startSession = useCallback(
-    (technique: BreathTechnique) => {
+    (t: Technique) => {
       clearTimer();
-      phaseIndexRef.current = 0;
-      phaseTimeLeftRef.current = technique.phases[0].duration;
-      cycleCountRef.current = 0;
-      setPhaseIndex(0);
-      setPhaseTimeLeft(technique.phases[0].duration);
-      setCycleCount(0);
+      phaseIdxRef.current = 0;
+      timeLeftRef.current = t.phases[0].duration;
+      cyclesRef.current = 0;
+      setPhaseIdx(0);
+      setTimeLeft(t.phases[0].duration);
+      setCycles(0);
       setIsRunning(true);
 
       intervalRef.current = setInterval(() => {
-        phaseTimeLeftRef.current -= 1;
-
-        if (phaseTimeLeftRef.current <= 0) {
-          const nextPhaseIndex = (phaseIndexRef.current + 1) % technique.phases.length;
-          if (nextPhaseIndex === 0) {
-            cycleCountRef.current += 1;
-            setCycleCount(cycleCountRef.current);
+        timeLeftRef.current -= 1;
+        if (timeLeftRef.current <= 0) {
+          const next = (phaseIdxRef.current + 1) % t.phases.length;
+          if (next === 0) {
+            cyclesRef.current += 1;
+            setCycles(cyclesRef.current);
           }
-          phaseIndexRef.current = nextPhaseIndex;
-          phaseTimeLeftRef.current = technique.phases[nextPhaseIndex].duration;
-          setPhaseIndex(nextPhaseIndex);
+          phaseIdxRef.current = next;
+          timeLeftRef.current = t.phases[next].duration;
+          setPhaseIdx(next);
         }
-
-        setPhaseTimeLeft(phaseTimeLeftRef.current);
+        setTimeLeft(timeLeftRef.current);
       }, 1000);
     },
     [clearTimer],
   );
 
-  const stopSession = useCallback(() => {
+  const stop = useCallback(() => {
     clearTimer();
     setIsRunning(false);
-    setPhaseIndex(0);
-    setPhaseTimeLeft(0);
+    setPhaseIdx(0);
+    setTimeLeft(0);
+    setCycles(0);
   }, [clearTimer]);
 
-  const handleSelectTechnique = (technique: BreathTechnique) => {
-    stopSession();
-    setSelectedTechnique(technique);
+  const handleSelect = (t: Technique) => {
+    stop();
+    setSelected(t);
   };
 
   const handleToggle = () => {
-    if (!selectedTechnique) return;
-    if (isRunning) {
-      stopSession();
-    } else {
-      startSession(selectedTechnique);
-    }
+    if (!selected) return;
+    if (isRunning) stop();
+    else startSession(selected);
   };
 
-  useEffect(() => {
-    return () => clearTimer();
-  }, [clearTimer]);
+  useEffect(() => () => clearTimer(), [clearTimer]);
 
-  const currentPhase = selectedTechnique?.phases[phaseIndex];
+  const currentPhase = selected?.phases[phaseIdx];
+  const RING_BASE = 180;
+  const ringSize = isRunning ? RING_BASE * (currentPhase?.scale ?? 1) : RING_BASE;
+  const outerSize = ringSize * 1.45;
+  const phaseDuration = currentPhase?.duration ?? 4;
 
   return (
-    <div className="relative min-h-screen bg-gradient-to-br from-blue-50 via-white to-sky-50 overflow-hidden">
-      <FloatingOrbs />
+    <div className="min-h-screen bg-white flex flex-col pt-14">
+      {/* Background decorative rings */}
+      <div className="fixed inset-0 pointer-events-none overflow-hidden flex items-center justify-center">
+        {[500, 700, 900].map((size, i) => (
+          <motion.div
+            key={size}
+            className="absolute rounded-full border border-black/[0.04]"
+            style={{ width: size, height: size }}
+            animate={{ scale: [1, 1.04, 1], rotate: i % 2 === 0 ? 360 : -360 }}
+            transition={{
+              scale: { duration: 6 + i * 2, repeat: Infinity, ease: 'easeInOut' },
+              rotate: { duration: 40 + i * 20, repeat: Infinity, ease: 'linear' },
+            }}
+          />
+        ))}
+      </div>
 
-      <div className="relative z-10 max-w-3xl mx-auto px-4 pt-28 pb-20">
-        {/* Header */}
-        <motion.div
-          className="text-center mb-12"
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.7 }}
-        >
-          <h1 className="text-5xl font-bold text-gray-800 mb-3">Breathe</h1>
-          <p className="text-lg text-gray-500">Choose a technique and follow the circle.</p>
-        </motion.div>
-
-        {/* Technique selection */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-12">
-          {techniques.map((technique, i) => (
-            <motion.button
-              key={technique.id}
-              onClick={() => handleSelectTechnique(technique)}
-              initial={{ opacity: 0, y: 16 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: i * 0.1, duration: 0.5 }}
-              whileHover={{ y: -4 }}
-              whileTap={{ scale: 0.96 }}
-              className={`p-5 rounded-2xl text-left border-2 transition-all duration-200 cursor-pointer ${
-                selectedTechnique?.id === technique.id
-                  ? 'border-blue-400 bg-blue-50 shadow-md shadow-blue-100'
-                  : 'border-gray-100 bg-white hover:border-blue-200 shadow-sm'
-              }`}
-            >
-              <span className="text-3xl mb-2 block">{technique.emoji}</span>
-              <div className="font-bold text-gray-800 text-base mb-1">{technique.name}</div>
-              <div className="text-xs text-gray-500 leading-relaxed">{technique.description}</div>
-              <div className="mt-2 flex gap-1 flex-wrap">
-                {technique.phases.map((p, pi) => (
-                  <span key={pi} className="text-xs bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full">
-                    {p.label} {p.duration}s
-                  </span>
-                ))}
-              </div>
-            </motion.button>
-          ))}
+      <div className="relative z-10 max-w-3xl mx-auto w-full px-6 py-16 flex flex-col items-center">
+        {/* Title */}
+        <div className="mb-16 text-center">
+          <SplitText
+            text="BREATHE"
+            className="text-7xl font-black tracking-tighter text-black justify-center"
+          />
+          <motion.p
+            className="mt-3 text-xs tracking-[0.3em] text-black/30 font-medium"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.6, duration: 0.8 }}
+          >
+            CHOOSE A TECHNIQUE
+          </motion.p>
         </div>
 
-        {/* Breathing animation */}
-        <AnimatePresence mode="wait">
-          {selectedTechnique && (
-            <motion.div
-              key={selectedTechnique.id}
-              className="flex flex-col items-center gap-8"
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.9 }}
-              transition={{ duration: 0.4 }}
+        {/* Technique selector */}
+        <motion.div
+          className="flex gap-0 border border-black w-full max-w-sm mb-16"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.4, duration: 0.6 }}
+        >
+          {TECHNIQUES.map((t, i) => (
+            <button
+              key={t.id}
+              onClick={() => handleSelect(t)}
+              className={`flex-1 py-4 flex flex-col items-center gap-1 transition-all duration-200 cursor-pointer relative ${
+                i < TECHNIQUES.length - 1 ? 'border-r border-black' : ''
+              } ${selected?.id === t.id ? 'bg-black text-white' : 'bg-white text-black hover:bg-black/5'}`}
             >
-              {/* Breathing circle */}
-              <div className="relative flex items-center justify-center" style={{ width: 280, height: 280 }}>
-                {/* Outer glow ring */}
-                <motion.div
-                  className="absolute rounded-full"
-                  style={{ backgroundColor: currentPhase?.color ?? '#3B82F6' }}
-                  animate={
-                    isRunning
-                      ? {
-                          width: `${(currentPhase?.scale ?? 1) * 200}px`,
-                          height: `${(currentPhase?.scale ?? 1) * 200}px`,
-                          opacity: [0.08, 0.15, 0.08],
-                        }
-                      : { width: '240px', height: '240px', opacity: 0.07 }
-                  }
-                  transition={
-                    isRunning
-                      ? {
-                          width: { duration: currentPhase?.duration ?? 4, ease: 'easeInOut' },
-                          height: { duration: currentPhase?.duration ?? 4, ease: 'easeInOut' },
-                          opacity: { duration: 2, repeat: Infinity, ease: 'easeInOut' },
-                        }
-                      : { duration: 0.5 }
-                  }
-                />
+              <span className="text-xs font-black tracking-widest">{t.name}</span>
+              <span className={`text-[10px] tracking-wider ${selected?.id === t.id ? 'text-white/50' : 'text-black/30'}`}>
+                {t.description}
+              </span>
+            </button>
+          ))}
+        </motion.div>
 
-                {/* Main circle */}
+        {/* Breathing circle */}
+        <div className="relative flex items-center justify-center mb-16" style={{ width: 360, height: 360 }}>
+          {/* Slowly rotating dashed outer ring */}
+          <motion.div
+            className="absolute rounded-full"
+            style={{
+              width: 340,
+              height: 340,
+              border: '1px dashed rgba(0,0,0,0.12)',
+              top: '50%',
+              left: '50%',
+              translateX: '-50%',
+              translateY: '-50%',
+            }}
+            animate={{ rotate: 360 }}
+            transition={{ duration: 30, repeat: Infinity, ease: 'linear' }}
+          />
+
+          {/* Outer breathing ring */}
+          <motion.div
+            className="absolute rounded-full border border-black/15"
+            style={{ top: '50%', left: '50%', translateX: '-50%', translateY: '-50%' }}
+            animate={{ width: outerSize, height: outerSize }}
+            transition={{ duration: phaseDuration, ease: 'easeInOut' }}
+          />
+
+          {/* Main breathing ring */}
+          <motion.div
+            className="absolute rounded-full border border-black"
+            style={{ top: '50%', left: '50%', translateX: '-50%', translateY: '-50%' }}
+            animate={{ width: ringSize, height: ringSize }}
+            transition={{ duration: phaseDuration, ease: 'easeInOut' }}
+          />
+
+          {/* Center content */}
+          <div className="relative z-10 flex flex-col items-center justify-center select-none" style={{ width: 160, height: 160 }}>
+            <AnimatePresence mode="wait">
+              {isRunning && currentPhase ? (
                 <motion.div
-                  className="absolute rounded-full flex items-center justify-center shadow-2xl"
-                  style={{
-                    background: `radial-gradient(circle, ${currentPhase?.color ?? '#3B82F6'}cc, ${currentPhase?.color ?? '#3B82F6'})`,
-                  }}
-                  animate={
-                    isRunning
-                      ? {
-                          width: `${(currentPhase?.scale ?? 1) * 150}px`,
-                          height: `${(currentPhase?.scale ?? 1) * 150}px`,
-                        }
-                      : { width: '150px', height: '150px' }
-                  }
-                  transition={
-                    isRunning
-                      ? {
-                          duration: currentPhase?.duration ?? 4,
-                          ease: 'easeInOut',
-                        }
-                      : { duration: 0.5 }
-                  }
+                  key={currentPhase.label + phaseIdx}
+                  className="flex flex-col items-center gap-2"
+                  initial={{ opacity: 0, scale: 0.85 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.85 }}
+                  transition={{ duration: 0.3 }}
                 >
-                  <div className="text-center text-white select-none">
-                    <div className="text-xl font-bold">
-                      {isRunning ? (currentPhase?.label ?? '') : 'Ready'}
-                    </div>
-                    {isRunning && phaseTimeLeft > 0 && (
-                      <div className="text-3xl font-light mt-1">{phaseTimeLeft}</div>
-                    )}
-                  </div>
-                </motion.div>
-              </div>
-
-              {/* Cycle counter */}
-              <div className="text-center">
-                {isRunning && (
-                  <motion.p
-                    className="text-gray-500 text-sm"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
+                  <span className="text-xs font-black tracking-[0.3em] text-black">{currentPhase.label}</span>
+                  <motion.span
+                    key={timeLeft}
+                    className="text-5xl font-black tabular-nums text-black leading-none"
+                    initial={{ opacity: 0, y: 6 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.2 }}
                   >
-                    {cycleCount > 0 ? `${cycleCount} cycle${cycleCount !== 1 ? 's' : ''} complete` : 'Starting...'}
-                  </motion.p>
-                )}
-              </div>
+                    {timeLeft}
+                  </motion.span>
+                </motion.div>
+              ) : selected ? (
+                <motion.div
+                  key="ready"
+                  className="flex flex-col items-center gap-2"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                >
+                  <span className="text-xs font-black tracking-[0.3em] text-black/40">{selected.name.toUpperCase()}</span>
+                  <span className="text-xs tracking-widest text-black/25 font-medium">READY</span>
+                </motion.div>
+              ) : (
+                <motion.div
+                  key="empty"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                >
+                  <div className="w-8 h-px bg-black/20" />
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+        </div>
 
-              {/* Start / Stop button */}
-              <motion.button
-                onClick={handleToggle}
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.94 }}
-                className={`px-10 py-4 rounded-2xl font-bold text-lg text-white shadow-lg transition-all duration-200 ${
-                  isRunning
-                    ? 'bg-gradient-to-r from-rose-400 to-pink-500 shadow-rose-200'
-                    : 'bg-gradient-to-r from-blue-400 to-sky-500 shadow-blue-200'
-                }`}
-              >
-                {isRunning ? '⏹ Stop' : '▶ Start'}
-              </motion.button>
-            </motion.div>
+        {/* Cycle counter */}
+        <AnimatePresence>
+          {isRunning && cycles > 0 && (
+            <motion.p
+              className="text-xs tracking-[0.3em] text-black/30 font-medium mb-8"
+              initial={{ opacity: 0, y: -8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0 }}
+            >
+              {cycles} {cycles === 1 ? 'CYCLE' : 'CYCLES'} COMPLETE
+            </motion.p>
           )}
         </AnimatePresence>
 
-        {!selectedTechnique && (
-          <motion.p
-            className="text-center text-gray-400 mt-8"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.5 }}
-          >
-            Select a technique above to begin.
-          </motion.p>
-        )}
+        {/* Start / Stop */}
+        <AnimatePresence mode="wait">
+          {selected && (
+            <motion.button
+              key={isRunning ? 'stop' : 'start'}
+              onClick={handleToggle}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              whileHover={{ scale: 1.03 }}
+              whileTap={{ scale: 0.96 }}
+              transition={{ duration: 0.25 }}
+              className={`px-14 py-4 text-xs font-black tracking-[0.3em] border transition-all duration-200 cursor-pointer ${
+                isRunning
+                  ? 'border-black bg-black text-white hover:bg-white hover:text-black'
+                  : 'border-black bg-white text-black hover:bg-black hover:text-white'
+              }`}
+            >
+              {isRunning ? 'STOP' : 'START'}
+            </motion.button>
+          )}
+        </AnimatePresence>
       </div>
     </div>
   );
