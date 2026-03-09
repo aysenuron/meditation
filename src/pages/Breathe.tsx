@@ -47,6 +47,46 @@ const TECHNIQUES: Technique[] = [
   },
 ];
 
+const SESSION_OPTIONS = [5, 10, 15] as const;
+
+function formatTime(s: number) {
+  return `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
+}
+
+function playPhaseTone(ctx: AudioContext, phase: string, duration: number) {
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  osc.type = 'sine';
+  const now = ctx.currentTime;
+  const d = duration;
+
+  if (phase === 'INHALE') {
+    osc.frequency.setValueAtTime(200, now);
+    osc.frequency.linearRampToValueAtTime(290, now + d * 0.9);
+    gain.gain.setValueAtTime(0, now);
+    gain.gain.linearRampToValueAtTime(0.15, now + Math.min(0.5, d * 0.12));
+    gain.gain.setValueAtTime(0.15, now + d - Math.min(0.4, d * 0.1));
+    gain.gain.linearRampToValueAtTime(0, now + d);
+  } else if (phase === 'EXHALE') {
+    osc.frequency.setValueAtTime(290, now);
+    osc.frequency.linearRampToValueAtTime(190, now + d * 0.9);
+    gain.gain.setValueAtTime(0.15, now);
+    gain.gain.linearRampToValueAtTime(0, now + d);
+  } else {
+    // HOLD — very faint sustained hum
+    osc.frequency.setValueAtTime(245, now);
+    gain.gain.setValueAtTime(0, now);
+    gain.gain.linearRampToValueAtTime(0.05, now + 0.4);
+    gain.gain.setValueAtTime(0.05, now + d - 0.4);
+    gain.gain.linearRampToValueAtTime(0, now + d);
+  }
+
+  osc.connect(gain);
+  gain.connect(ctx.destination);
+  osc.start(now);
+  osc.stop(now + d);
+}
+
 function SplitText({ text, className }: { text: string; className?: string }) {
   return (
     <div className={`flex overflow-hidden ${className ?? ''}`}>
@@ -71,11 +111,21 @@ export default function Breathe() {
   const [phaseIdx, setPhaseIdx] = useState(0);
   const [timeLeft, setTimeLeft] = useState(0);
   const [cycles, setCycles] = useState(0);
+  const [sessionMinutes, setSessionMinutes] = useState<number>(5);
+  const [sessionLeft, setSessionLeft] = useState(0);
 
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const phaseIdxRef = useRef(0);
   const timeLeftRef = useRef(0);
   const cyclesRef = useRef(0);
+  const sessionLeftRef = useRef(0);
+  const audioCtxRef = useRef<AudioContext | null>(null);
+
+  const getCtx = useCallback(() => {
+    if (!audioCtxRef.current) audioCtxRef.current = new AudioContext();
+    if (audioCtxRef.current.state === 'suspended') audioCtxRef.current.resume();
+    return audioCtxRef.current;
+  }, []);
 
   const clearTimer = useCallback(() => {
     if (intervalRef.current) {
@@ -85,17 +135,39 @@ export default function Breathe() {
   }, []);
 
   const startSession = useCallback(
-    (t: Technique) => {
+    (t: Technique, minutes: number) => {
       clearTimer();
       phaseIdxRef.current = 0;
       timeLeftRef.current = t.phases[0].duration;
       cyclesRef.current = 0;
+      sessionLeftRef.current = minutes * 60;
       setPhaseIdx(0);
       setTimeLeft(t.phases[0].duration);
       setCycles(0);
+      setSessionLeft(minutes * 60);
       setIsRunning(true);
 
+      // Play first phase tone
+      const ctx = getCtx();
+      playPhaseTone(ctx, t.phases[0].label, t.phases[0].duration);
+
       intervalRef.current = setInterval(() => {
+        // Session countdown
+        sessionLeftRef.current -= 1;
+        setSessionLeft(sessionLeftRef.current);
+
+        if (sessionLeftRef.current <= 0) {
+          clearInterval(intervalRef.current!);
+          intervalRef.current = null;
+          setIsRunning(false);
+          setPhaseIdx(0);
+          setTimeLeft(0);
+          setCycles(0);
+          setSessionLeft(0);
+          return;
+        }
+
+        // Phase countdown
         timeLeftRef.current -= 1;
         if (timeLeftRef.current <= 0) {
           const next = (phaseIdxRef.current + 1) % t.phases.length;
@@ -106,11 +178,14 @@ export default function Breathe() {
           phaseIdxRef.current = next;
           timeLeftRef.current = t.phases[next].duration;
           setPhaseIdx(next);
+          // Play tone for new phase
+          const ctx2 = audioCtxRef.current;
+          if (ctx2) playPhaseTone(ctx2, t.phases[next].label, t.phases[next].duration);
         }
         setTimeLeft(timeLeftRef.current);
       }, 1000);
     },
-    [clearTimer],
+    [clearTimer, getCtx],
   );
 
   const stop = useCallback(() => {
@@ -119,6 +194,7 @@ export default function Breathe() {
     setPhaseIdx(0);
     setTimeLeft(0);
     setCycles(0);
+    setSessionLeft(0);
   }, [clearTimer]);
 
   const handleSelect = (t: Technique) => {
@@ -129,7 +205,7 @@ export default function Breathe() {
   const handleToggle = () => {
     if (!selected) return;
     if (isRunning) stop();
-    else startSession(selected);
+    else startSession(selected, sessionMinutes);
   };
 
   useEffect(() => () => clearTimer(), [clearTimer]);
@@ -140,6 +216,7 @@ export default function Breathe() {
   const outerSize = ringSize * 1.45;
   const phaseDuration = currentPhase?.duration ?? 4;
   const circleContainer = RING_BASE * 2;
+  const sessionProgress = sessionLeft > 0 ? sessionLeft / (sessionMinutes * 60) : 1;
 
   return (
     <div className="min-h-screen bg-white flex flex-col pt-14">
@@ -161,7 +238,7 @@ export default function Breathe() {
 
       <div className="relative z-10 max-w-3xl mx-auto w-full px-4 md:px-6 py-8 md:py-16 flex flex-col items-center">
         {/* Title */}
-        <div className="mb-8 md:mb-16 text-center">
+        <div className="mb-8 md:mb-12 text-center">
           <SplitText
             text="BREATHE"
             className="text-5xl md:text-7xl font-black tracking-tighter text-black justify-center"
@@ -178,7 +255,7 @@ export default function Breathe() {
 
         {/* Technique selector */}
         <motion.div
-          className="flex gap-0 border border-black w-full max-w-sm mb-8 md:mb-16"
+          className="flex gap-0 border border-black w-full max-w-sm mb-6"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.4, duration: 0.6 }}
@@ -199,8 +276,70 @@ export default function Breathe() {
           ))}
         </motion.div>
 
+        {/* Duration picker + Start/Stop */}
+        <AnimatePresence mode="wait">
+          {selected && (
+            <motion.div
+              className="flex flex-col items-center gap-4 mb-8 md:mb-12 w-full max-w-sm"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ duration: 0.25 }}
+            >
+              {/* Duration options */}
+              {!isRunning && (
+                <div className="flex border border-black w-full">
+                  {SESSION_OPTIONS.map((m, i) => (
+                    <button
+                      key={m}
+                      onClick={() => setSessionMinutes(m)}
+                      className={`flex-1 py-3 text-xs font-black tracking-[0.25em] transition-colors duration-200 cursor-pointer ${
+                        i < SESSION_OPTIONS.length - 1 ? 'border-r border-black' : ''
+                      } ${sessionMinutes === m ? 'bg-black text-white' : 'bg-white text-black hover:bg-black/5'}`}
+                    >
+                      {m} MIN
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {/* Session time remaining when running */}
+              {isRunning && (
+                <div className="flex items-center gap-3 w-full">
+                  <div className="flex-1 h-px bg-black/10 relative overflow-hidden">
+                    <motion.div
+                      className="absolute left-0 top-0 h-full bg-black"
+                      animate={{ width: `${(1 - sessionProgress) * 100}%` }}
+                      transition={{ duration: 1, ease: 'linear' }}
+                    />
+                  </div>
+                  <span className="text-xs font-black tabular-nums text-black/40 tracking-widest shrink-0">
+                    {formatTime(sessionLeft)}
+                  </span>
+                  <div className="flex-1 h-px bg-black/10" />
+                </div>
+              )}
+
+              {/* Start / Stop button */}
+              <motion.button
+                key={isRunning ? 'stop' : 'start'}
+                onClick={handleToggle}
+                whileHover={{ scale: 1.03 }}
+                whileTap={{ scale: 0.96 }}
+                className={`w-full py-4 text-xs font-black tracking-[0.3em] border transition-all duration-200 cursor-pointer ${
+                  isRunning
+                    ? 'border-black bg-black text-white hover:bg-white hover:text-black'
+                    : 'border-black bg-white text-black hover:bg-black hover:text-white'
+                }`}
+              >
+                {isRunning ? 'STOP' : 'START'}
+              </motion.button>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         {/* Breathing circle */}
-        <div className="relative flex items-center justify-center mb-8 md:mb-16" style={{ width: circleContainer + 80, height: circleContainer + 80 }}>
+        <div className="relative flex items-center justify-center mb-6" style={{ width: circleContainer + 80, height: circleContainer + 80 }}>
           {/* Slowly rotating dashed outer ring */}
           <motion.div
             className="absolute rounded-full"
@@ -285,36 +424,13 @@ export default function Breathe() {
         <AnimatePresence>
           {isRunning && cycles > 0 && (
             <motion.p
-              className="text-xs tracking-[0.3em] text-black/30 font-medium mb-8"
+              className="text-xs tracking-[0.3em] text-black/30 font-medium"
               initial={{ opacity: 0, y: -8 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0 }}
             >
               {cycles} {cycles === 1 ? 'CYCLE' : 'CYCLES'} COMPLETE
             </motion.p>
-          )}
-        </AnimatePresence>
-
-        {/* Start / Stop */}
-        <AnimatePresence mode="wait">
-          {selected && (
-            <motion.button
-              key={isRunning ? 'stop' : 'start'}
-              onClick={handleToggle}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-              whileHover={{ scale: 1.03 }}
-              whileTap={{ scale: 0.96 }}
-              transition={{ duration: 0.25 }}
-              className={`px-14 py-4 text-xs font-black tracking-[0.3em] border transition-all duration-200 cursor-pointer ${
-                isRunning
-                  ? 'border-black bg-black text-white hover:bg-white hover:text-black'
-                  : 'border-black bg-white text-black hover:bg-black hover:text-white'
-              }`}
-            >
-              {isRunning ? 'STOP' : 'START'}
-            </motion.button>
           )}
         </AnimatePresence>
       </div>
