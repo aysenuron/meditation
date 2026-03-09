@@ -76,7 +76,8 @@ export default function Sound() {
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const audioCtxRef = useRef<AudioContext | null>(null);
 
-  const { activeFreq, toggle } = useFrequencySound();
+  const [selectedFreq, setSelectedFreq] = useState<FrequencyHz | null>(null);
+  const { activeFreq, play, stop } = useFrequencySound();
 
   const getCtx = () => {
     if (!audioCtxRef.current) audioCtxRef.current = new AudioContext();
@@ -93,12 +94,14 @@ export default function Sound() {
   const start = () => {
     setFinished(false);
     setIsRunning(true);
+    if (selectedFreq) play(selectedFreq);
     intervalRef.current = setInterval(() => {
       setTimeLeft((prev) => {
         if (prev <= 1) {
           clearTimer();
           setIsRunning(false);
           setFinished(true);
+          stop();
           const ctx = getCtx();
           if (ctx.state === 'suspended') ctx.resume().then(() => playBell(ctx));
           else playBell(ctx);
@@ -112,6 +115,7 @@ export default function Sound() {
   const pause = () => {
     clearTimer();
     setIsRunning(false);
+    stop();
   };
 
   const reset = () => {
@@ -119,6 +123,7 @@ export default function Sound() {
     setIsRunning(false);
     setFinished(false);
     setTimeLeft(minutes * 60);
+    stop();
   };
 
   const changeMinutes = (val: number) => {
@@ -179,30 +184,31 @@ export default function Sound() {
           transition={{ delay: 0.3, duration: 0.6 }}
         >
           {FREQUENCIES.map((f, i) => {
-            const isActive = activeFreq === f.hz;
+            const isSelected = selectedFreq === f.hz;
+            const isPlaying = isRunning && activeFreq === f.hz;
             return (
               <motion.button
                 key={f.hz}
-                onClick={() => toggle(f.hz)}
+                onClick={() => setSelectedFreq(isSelected ? null : f.hz)}
                 className={`relative border-r border-b border-black p-6 flex flex-col gap-2 cursor-pointer transition-colors duration-300 ${
-                  isActive ? 'bg-black text-white' : 'bg-white text-black hover:bg-black/5'
+                  isSelected ? 'bg-black text-white' : 'bg-white text-black hover:bg-black/5'
                 }`}
                 initial={{ opacity: 0, y: 16 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.1 + i * 0.06, duration: 0.5 }}
                 whileTap={{ scale: 0.97 }}
               >
-                <span className={`text-xs font-black tracking-[0.3em] ${isActive ? 'text-white/40' : 'text-black/25'}`}>
+                <span className={`text-xs font-black tracking-[0.3em] ${isSelected ? 'text-white/40' : 'text-black/25'}`}>
                   {f.note}
                 </span>
                 <span className="text-3xl font-black leading-none tabular-nums">
                   {f.hz}
-                  <span className={`text-base font-bold ml-1 ${isActive ? 'text-white/60' : 'text-black/40'}`}>Hz</span>
+                  <span className={`text-base font-bold ml-1 ${isSelected ? 'text-white/60' : 'text-black/40'}`}>Hz</span>
                 </span>
-                <span className={`text-[10px] font-bold tracking-[0.2em] ${isActive ? 'text-white/50' : 'text-black/30'}`}>
+                <span className={`text-[10px] font-bold tracking-[0.2em] ${isSelected ? 'text-white/50' : 'text-black/30'}`}>
                   {f.label.toUpperCase()}
                 </span>
-                {isActive && (
+                {isPlaying && (
                   <div className="mt-1">
                     <WaveformBars />
                   </div>
@@ -214,7 +220,7 @@ export default function Sound() {
 
         {/* Active frequency label */}
         <AnimatePresence>
-          {activeFreq && (
+          {selectedFreq && (
             <motion.div
               className="text-center mb-10"
               initial={{ opacity: 0, y: -8 }}
@@ -222,7 +228,7 @@ export default function Sound() {
               exit={{ opacity: 0 }}
             >
               <span className="text-xs tracking-[0.3em] text-black/30 font-medium">
-                PLAYING {activeFreq} Hz
+                {isRunning && activeFreq ? `PLAYING ${activeFreq} Hz` : `SELECTED ${selectedFreq} Hz`}
               </span>
             </motion.div>
           )}

@@ -80,5 +80,7 @@ export function useFrequencySound() {
     [activeFreq, stopCurrent, play],
   );
 
-  return { activeFreq, toggle };
+  const stop = useCallback(() => stopCurrent(false), [stopCurrent]);
+
+  return { activeFreq, toggle, play, stop };
 }
