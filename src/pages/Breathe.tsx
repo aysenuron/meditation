@@ -135,10 +135,11 @@ export default function Breathe() {
   useEffect(() => () => clearTimer(), [clearTimer]);
 
   const currentPhase = selected?.phases[phaseIdx];
-  const RING_BASE = 180;
+  const RING_BASE = typeof window !== 'undefined' && window.innerWidth < 640 ? 130 : 180;
   const ringSize = isRunning ? RING_BASE * (currentPhase?.scale ?? 1) : RING_BASE;
   const outerSize = ringSize * 1.45;
   const phaseDuration = currentPhase?.duration ?? 4;
+  const circleContainer = RING_BASE * 2;
 
   return (
     <div className="min-h-screen bg-white flex flex-col pt-14">
@@ -158,12 +159,12 @@ export default function Breathe() {
         ))}
       </div>
 
-      <div className="relative z-10 max-w-3xl mx-auto w-full px-6 py-16 flex flex-col items-center">
+      <div className="relative z-10 max-w-3xl mx-auto w-full px-4 md:px-6 py-8 md:py-16 flex flex-col items-center">
         {/* Title */}
-        <div className="mb-16 text-center">
+        <div className="mb-8 md:mb-16 text-center">
           <SplitText
             text="BREATHE"
-            className="text-7xl font-black tracking-tighter text-black justify-center"
+            className="text-5xl md:text-7xl font-black tracking-tighter text-black justify-center"
           />
           <motion.p
             className="mt-3 text-xs tracking-[0.3em] text-black/30 font-medium"
@@ -177,7 +178,7 @@ export default function Breathe() {
 
         {/* Technique selector */}
         <motion.div
-          className="flex gap-0 border border-black w-full max-w-sm mb-16"
+          className="flex gap-0 border border-black w-full max-w-sm mb-8 md:mb-16"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.4, duration: 0.6 }}
@@ -199,13 +200,13 @@ export default function Breathe() {
         </motion.div>
 
         {/* Breathing circle */}
-        <div className="relative flex items-center justify-center mb-16" style={{ width: 360, height: 360 }}>
+        <div className="relative flex items-center justify-center mb-8 md:mb-16" style={{ width: circleContainer + 80, height: circleContainer + 80 }}>
           {/* Slowly rotating dashed outer ring */}
           <motion.div
             className="absolute rounded-full"
             style={{
-              width: 340,
-              height: 340,
+              width: circleContainer + 60,
+              height: circleContainer + 60,
               border: '1px dashed rgba(0,0,0,0.12)',
               top: '50%',
               left: '50%',
@@ -233,7 +234,7 @@ export default function Breathe() {
           />
 
           {/* Center content */}
-          <div className="relative z-10 flex flex-col items-center justify-center select-none" style={{ width: 160, height: 160 }}>
+          <div className="relative z-10 flex flex-col items-center justify-center select-none" style={{ width: RING_BASE * 0.88, height: RING_BASE * 0.88 }}>
             <AnimatePresence mode="wait">
               {isRunning && currentPhase ? (
                 <motion.div
@@ -247,7 +248,7 @@ export default function Breathe() {
                   <span className="text-xs font-black tracking-[0.3em] text-black">{currentPhase.label}</span>
                   <motion.span
                     key={timeLeft}
-                    className="text-5xl font-black tabular-nums text-black leading-none"
+                    className="text-4xl md:text-5xl font-black tabular-nums text-black leading-none"
                     initial={{ opacity: 0, y: 6 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.2 }}

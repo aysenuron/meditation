@@ -159,12 +159,12 @@ export default function Sound() {
         />
       </div>
 
-      <div className="relative z-10 max-w-3xl mx-auto w-full px-6 py-16">
+      <div className="relative z-10 max-w-3xl mx-auto w-full px-4 md:px-6 py-8 md:py-16">
         {/* Title */}
-        <div className="mb-16 text-center">
+        <div className="mb-8 md:mb-16 text-center">
           <SplitText
             text="SOUND"
-            className="text-7xl font-black tracking-tighter text-black justify-center"
+            className="text-5xl md:text-7xl font-black tracking-tighter text-black justify-center"
           />
           <motion.p
             className="mt-3 text-xs tracking-[0.3em] text-black/30 font-medium"
@@ -178,7 +178,7 @@ export default function Sound() {
 
         {/* Frequency grid */}
         <motion.div
-          className="grid grid-cols-3 border-l border-t border-black mb-16"
+          className="grid grid-cols-3 border-l border-t border-black mb-8 md:mb-16"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.3, duration: 0.6 }}
@@ -190,7 +190,7 @@ export default function Sound() {
               <motion.button
                 key={f.hz}
                 onClick={() => setSelectedFreq(isSelected ? null : f.hz)}
-                className={`relative border-r border-b border-black p-6 flex flex-col gap-2 cursor-pointer transition-colors duration-300 ${
+                className={`relative border-r border-b border-black p-3 md:p-6 flex flex-col gap-1 md:gap-2 cursor-pointer transition-colors duration-300 ${
                   isSelected ? 'bg-black text-white' : 'bg-white text-black hover:bg-black/5'
                 }`}
                 initial={{ opacity: 0, y: 16 }}
@@ -201,9 +201,9 @@ export default function Sound() {
                 <span className={`text-xs font-black tracking-[0.3em] ${isSelected ? 'text-white/40' : 'text-black/25'}`}>
                   {f.note}
                 </span>
-                <span className="text-3xl font-black leading-none tabular-nums">
+                <span className="text-xl md:text-3xl font-black leading-none tabular-nums">
                   {f.hz}
-                  <span className={`text-base font-bold ml-1 ${isSelected ? 'text-white/60' : 'text-black/40'}`}>Hz</span>
+                  <span className={`text-xs md:text-base font-bold ml-1 ${isSelected ? 'text-white/60' : 'text-black/40'}`}>Hz</span>
                 </span>
                 <span className={`text-[10px] font-bold tracking-[0.2em] ${isSelected ? 'text-white/50' : 'text-black/30'}`}>
                   {f.label.toUpperCase()}
@@ -222,7 +222,7 @@ export default function Sound() {
         <AnimatePresence>
           {selectedFreq && (
             <motion.div
-              className="text-center mb-10"
+              className="text-center mb-4 md:mb-10"
               initial={{ opacity: 0, y: -8 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0 }}
@@ -236,7 +236,7 @@ export default function Sound() {
 
         {/* Timer */}
         <motion.div
-          className="border border-black p-10 flex flex-col items-center gap-8"
+          className="border border-black p-6 md:p-10 flex flex-col items-center gap-6 md:gap-8"
           initial={{ opacity: 0, y: 24 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.5, duration: 0.6 }}
