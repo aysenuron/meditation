@@ -205,7 +205,7 @@ export default function Sound() {
                   {f.hz}
                   <span className={`text-xs md:text-base font-bold ml-1 ${isSelected ? 'text-white/60' : 'text-black/40'}`}>Hz</span>
                 </span>
-                <span className={`text-[10px] font-bold tracking-[0.2em] ${isSelected ? 'text-white/50' : 'text-black/30'}`}>
+                <span className={`text-[9px] font-bold tracking-normal md:tracking-[0.2em] leading-tight ${isSelected ? 'text-white/50' : 'text-black/30'}`}>
                   {f.label.toUpperCase()}
                 </span>
                 {isPlaying && (
